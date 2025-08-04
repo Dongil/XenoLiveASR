@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Translation Viewer</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --panel-bg: #2b2b2b;
+            --text-color: #e0e0e0;
+            --border-color: #444;
+            --header-font-size: 1.8vw;
+            --content-font-size: 1.5vw;
+            --zoomed-header-font-size: 2.5vw;
+            --zoomed-content-font-size: 4.5vw;
+        }
+        html, body {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color); color: var(--text-color);
+            font-family: 'Pretendard', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            overflow: hidden;
+        }
+        .grid-container {
+            display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr;
+            gap: 1rem; width: 100vw; height: 100vh; padding: 1rem; box-sizing: border-box;
+        }
+        .panel {
+            background-color: var(--panel-bg); border-radius: 10px; border: 1px solid var(--border-color);
+            display: flex; flex-direction: column; overflow: hidden;
+            cursor: pointer; transition: all 0.3s ease-in-out;
+        }
+        .panel h3 {
+            margin: 0; padding: 0.8rem 1.2rem;
+            background-color: rgba(0,0,0,0.2); border-bottom: 1px solid var(--border-color);
+            font-size: var(--header-font-size);
+            max-font-size: 24px;
+        }
+        .output-div {
+            flex-grow: 1; overflow-y: auto; padding: 1.2rem;
+            text-align: left; font-size: var(--content-font-size);
+            line-height: 1.7;
+            max-font-size: 22px;
+        }
+        .output-div p { margin: 0 0 0.8em 0; transition: background-color 0.3s; }
+        .zoomed-view .panel:not(.zoomed-in) { display: none; }
+        .zoomed-in {
+            position: fixed !important; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 100;
+            margin: 0; padding: 0; border-radius: 0; gap: 0; cursor: zoom-out;
+        }
+        .zoomed-in h3 {
+            font-size: var(--zoomed-header-font-size);
+            padding: 1.5rem 2.5rem;
+            max-font-size: 36px;
+        }
+        .zoomed-in .output-div {
+            font-size: var(--zoomed-content-font-size);
+            padding: 2.5rem 3.5rem;
+            max-font-size: 64px;
+        }
+        /* 최종 결과 스타일 */
+        .output-div p.final-result {
+            animation: background-fade 1.5s ease-out;
+            font-weight: 500;
+        }
+        /* 중간 결과 스타일 */
+        .output-div p.interim-typing::after {
+            content: '█';
+            animation: blink 0.7s step-end infinite;
+        }
+        @keyframes background-fade { 0% { background-color: rgba(187, 134, 252, 0.2); } 100% { background-color: transparent; } }
+        @keyframes blink { 50% { opacity: 0; } }
+        #fullscreen-btn {
+            position: fixed; bottom: 20px; right: 20px; background-color: #444; color: #fff;
+            border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 24px;
+            cursor: pointer; z-index: 101; opacity: 0.5; transition: opacity 0.2s;
+        }
+        #fullscreen-btn:hover { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div class="grid-container" id="grid-container">
+        <div class="panel" id="panel-original" data-lang="original"><h3>음성 인식 내용</h3><div class="output-div"></div></div>
+        <div class="panel" id="panel-trans-1" data-lang=""><h3>번역 1</h3><div class="output-div"></div></div>
+        <div class="panel" id="panel-trans-2" data-lang=""><h3>번역 2</h3><div class="output-div"></div></div>
+        <div class="panel" id="panel-trans-3" data-lang=""><h3>번역 3</h3><div class="output-div"></div></div>
+    </div>
+    <button id="fullscreen-btn" title="전체화면">⛶</button>
+
+    <!-- 외부 JavaScript 파일 로드 -->
+    <script src="/js/watch.js"></script>
+</body>
+</html>
