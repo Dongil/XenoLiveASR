@@ -27,8 +27,11 @@ XenoLiveASR/
 # 가상환경 설정
 
 
+# UI
+
 
 # 번역엔진
 1. DeepL  
 2. Papago  
 3. Google  
+
