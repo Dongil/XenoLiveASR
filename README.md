@@ -14,9 +14,9 @@ XenoLiveASR/
 ├── js/  
 │   └── controller.js       # 프론트앤드 javascript  
 │  
-└── templates/  
-    ├── index.html          # speak controller UI/UX   
-    └── watch.html          # 결과 viewer  
+├── templates/  
+│    ├── index.html          # speak controller UI/UX   
+│    └── watch.html          # 결과 viewer  
 
 # 가상환경 설정
 
