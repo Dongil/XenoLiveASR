@@ -11,14 +11,22 @@ XenoLiveASR/
 │  
 ├── config.py            # 모든 설정값(VAD, Whisper 모델명 등) 담당  
 │  
+├── setting.ini          # 서버 환경 설정  
+│  
+├── css/  
+│    └──  css 파일 경로   
 ├── js/  
-│   └── controller.js       # 프론트앤드 javascript  
+│   ├── controller.js       # 프론트앤드 javascript  
+│   └── watch.js   
 │  
 ├── templates/  
 │    ├── index.html          # speak controller UI/UX   
 │    └── watch.html          # 결과 viewer  
 
+
 # 가상환경 설정
+
+
 
 # 번역엔진
 1. DeepL  
