@@ -1,129 +1,118 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<link rel="stylesheet" type="text/css" href="https://asr.xenoglobal.co.kr/css/common.css">  
     <title>Live ASR & Translation - Controller</title>
-    <style>
-        body { background-color: #121212; color: #e0e0e0; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 2rem 0; }
-        .container {position:relative; width: calc(50% - 40px); margin:0 20px; max-width: 700px; background-color: #1e1e1e; padding: 2rem; border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); }
-        h1, h2 { font-size:24px; font-weight:700; color: #bb86fc; text-align: center; }
-        h2,h3 { padding:10px 0;}
-		h3 span  {text-align:top;}
-        .controls, .status-box { margin-bottom: 1.5rem; }
-		.transcription-box { margin-bottom: 1rem; }
-        .control-area { text-align: center; padding: 1.5rem; border: 1px dashed #444; border-radius: 8px; margin-bottom: 1rem; }
-        .control-area.disabled { opacity: 0.4; pointer-events: none; }
-        label { display: block; margin-bottom: 0.5rem; color: #a0a0a0; }
-        select, button, input[type="file"]::file-selector-button { padding: 10px 15px; font-size: 16px; border-radius: 5px; border: 1px solid #333; background-color: #2a2a2a; color: #e0e0e0; cursor: pointer; transition: background-color 0.2s; }
-        button { background-color: #03dac6; color: #121212; font-weight: bold; border: none; margin: 0 5px; }
-        button:disabled { background-color: #444; color: #888; cursor: not-allowed; }
-        button.recording, button.playing { background-color: #cf6679; }
-        #status { font-style: italic; color: #a0a0a0; min-height: 24px; }
-        .output-div { background-color: #2c2c2c; padding: 1rem; border-radius: 5px; min-height: 130px; max-height: 150px; overflow-y: auto; text-align: left; white-space: pre-wrap; border: 1px solid #444; }
-        .output-div p { margin: 0 0 0.5em 0; padding: 0.2em 0.4em; border-bottom: 1px solid #3a3a3a; transition: background-color 0.3s; /* 부드러운 전환 효과 추가 */ }
-        .lang-select { background-color: #333; border: 1px solid #555; font-size: 14px; padding: 5px 8px; }
-        #waveform-canvas { width: 100%; height: 80px; background-color: #2c2c2c; border-radius: 5px; margin: 1rem 0; }
-        .player-controls button { font-size: 20px; padding: 8px 12px; }
-       .open {position: absolute; top:5px; right:20px; width:30px; height:30px; border-radius:15px; background:#000; text-align:center; font-size:20px; font-weight:bold; color:#fff;}
-        /* [수정] 최종 확정된 결과에 대한 스타일 */
-        .output-div p.final-result {
-            animation: background-fade 1.5s ease-out;
-            font-weight: 500;
-        }
+	<link rel="stylesheet" type="text/css" href="https://asr.xenoglobal.co.kr/css/live_asr.css">  
+	<style>
+	  body {
+		transition: background-color 0.3s, color 0.3s;
+	  }
 
-        /* [추가] 현재 타이핑 중인 중간 결과에 대한 스타일 */
-        .output-div p.interim-typing::after {
-            content: '█';
-            animation: blink 0.7s step-end infinite;
-        }
+	  /* 라이트 모드 기본 */
+	  body {
+		background-color: #f1f4ff;
+		color: black;
+	  }
 
-        /* [추가] 오버레이 스타일 */
-        #rejection-overlay {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.85);
-            color: #fff;
-            display: none; /* 평소에는 숨김 */
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            z-index: 1000;
-        }
-        .overlay-content {
-            background-color: #2e2e2e;
-            padding: 2rem 3rem;
-            border-radius: 10px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
-        }
-        .overlay-content h2 { color: #cf6679; }
-
-        @keyframes background-fade { 0% { background-color: rgba(187, 134, 252, 0.2); } 100% { background-color: transparent; } }
-        @keyframes blink { 50% { opacity: 0; } }
-    </style>
+	  /* 다크 모드 자동 감지 */
+	  @media (prefers-color-scheme: dark) {
+		body {
+		  background-color: #222;
+		  color: #e0e0e0;
+		}
+	  }
+	  </style>
 </head>
 <body>
-    <!-- [추가] 이 div를 container 위에 추가합니다. -->
     <div id="rejection-overlay">
-        <div class="overlay-content">
-            <h2>연결 거부됨</h2>
-            <p>이 스트림은 다른 곳에서 제어 중입니다.<br>이 창은 비활성화됩니다.</p>
-        </div>
+        <div class="overlay-content"><h2>연결 거부됨</h2><p>이 스트림은 다른 곳에서 제어 중입니다.<br>이 창은 비활성화됩니다.</p></div>
     </div>
-    <div class="container">
-        <h1>Live ASR & Translation - Controller</h1>
-        <div class="status-box">
-            <h3><span>상태</span>  <span id="status">대기 중</span></h3>
-           
-        </div>
-
-        <!-- 마이크 입력 영역 -->
-        <div class="control-area" id="mic-control-area">
-            <h2>1. 마이크로 전송</h2>
-            <label for="mic-select">마이크 장치 선택:</label>
-            <select id="mic-select"></select>
-            <button id="record-btn">전송 시작</button>  
-        </div>
-
-        <!-- 파일 입력 영역 -->
-        <div class="control-area" id="file-control-area">
-            <h2>2. 파일로 전송</h2>
-            <input type="file" id="file-input" accept="audio/mp3, video/mp4">
-            <canvas id="waveform-canvas"></canvas>
-            <div class="player-controls">
-                <button id="restart-btn" disabled>⏮</button>
-                <button id="play-pause-btn" disabled>▶️</button>
+    
+    <div class="container-wrapper">
+        <div class="container">
+		<a href="" id="open-viewer-link" target="_blank" class="open-viewer">T</a>
+            <h1>실시간 번역</h1>
+            <div class="status-box">
+                <h3>상태: <span id="status">대기 중</span></h3>
             </div>
-        </div> 
-        <!-- 브라우저 전송 영역 -->
-        <div class="control-area" id="mic-control-area">
-            <h2>3. 브라우저 전송</h2>    
-            <button id="tab-audio-btn">탭 오디오 캡처</button>
-        </div>		
-    </div>
-	 <!-- 결과 표시 영역 -->
-    <div class="container">
-	  <a href="watch.html" target="_blank"><span class="open">T</span></a>
-        <div class="transcription-box">
-            <h3>음성 인식 내용</h3>
-            <div id="transcription-output" class="output-div"></div>
-        </div>
-        <div class="transcription-box" id="translation-container-1">
-            <h3>번역 1 <select class="lang-select" id="lang-select-1"></select></h3>
-            <div id="translation-output-1" class="output-div"></div>
-        </div>
-        <!-- ... (번역 2, 3 영역은 이전과 동일하게 유지) ... -->
-        <div class="transcription-box" id="translation-container-2"><h3>번역 2 <select class="lang-select" id="lang-select-2"></select></h3>
-		  <div id="translation-output-2" class="output-div"></div>
-		</div>
-        <div class="transcription-box" id="translation-container-3"><h3>번역 3 <select class="lang-select" id="lang-select-3"></select></h3>
-		  <div id="translation-output-3" class="output-div"></div>
-        </div>
-	</div>
+            
+            <!-- [추가] 설정 영역 -->
+            <div class="settings-area">
+                <div class="setting-item">
+                    <label for="silence-threshold-slider">문장 끝 침묵 구간:</label>
+                    <div class="slider-container">
+                        <span>짧게</span>
+                        <input type="range" id="silence-threshold-slider" min="0.2" max="1.5" step="0.1" value="0.6">
+                        <span>길게</span>
+                        <span id="silence-threshold-value">0.6s</span>
+                    </div>
+                </div>
+                <div class="setting-item">
+                    <label for="translation-engine-select">번역 엔진:</label>
+                    <select id="translation-engine-select">
+                        <option value="deepl" selected>DeepL</option>
+                        <option value="papago">Papago</option>
+                        <option value="google">Google</option>
+                    </select>
+                </div>
+            </div>
 
-    <!-- [핵심 수정] 외부 JavaScript 파일 로드 -->
+            <div class="control-area" id="mic-control-area">
+                <h2>1. 실시간 음성인식</h2>
+                <label for="mic-select">입력장치 선택:</label>
+                <select id="mic-select" class="mic-select" ></select>
+                <button id="record-btn">음성인식 시작</button>  
+            </div>
+			
+			<div class="control-area" id=" " >
+                <h2>2. 번역 언어 선택</h2>
+				<div class="lang_select_box">
+				  <div>번역 1 <select class="lang-select" id="lang-select-1"></select></div>
+				  <div>번역 2 <select class="lang-select" id="lang-select-2"></select></div>
+				  <div>번역 3 <select class="lang-select" id="lang-select-3"></select></div>
+				</div>
+                
+            </div> 
+
+            <div class="control-area" id="file-control-area" style="display:none">
+                <h2>2. 파일로 전송</h2>
+                <input type="file" id="file-input" accept="audio/*,video/*">
+                <canvas id="waveform-canvas"></canvas>
+                <div class="player-controls">
+                    <button id="restart-btn" disabled>⏮</button>
+                    <button id="play-pause-btn" disabled>▶️</button>
+                </div>
+            </div> 
+
+            <div class="control-area"style="display:none">
+                <h2>3. 브라우저 전송</h2>    
+                <button id="tab-audio-btn">탭 오디오 캡처</button>
+            </div>		
+        </div>
+
+        <div class="container"style="display:none">
+          
+            <div class="transcription-box">
+                <h3>음성 인식 내용</h3>
+                <div id="transcription-output" class="output-div"></div>
+            </div>
+            <div class="transcription-box">
+                <h3>번역 1 <select class="lang-select" id="lang-select-1"></select></h3>
+                <div id="translation-output-1" class="output-div"></div>
+            </div>
+            <div class="transcription-box">
+                <h3>번역 2 <select class="lang-select" id="lang-select-2"></select></h3>
+                <div id="translation-output-2" class="output-div"></div>
+            </div>
+            <div class="transcription-box">
+                <h3>번역 3 <select class="lang-select" id="lang-select-3"></select></h3>
+                <div id="translation-output-3" class="output-div"></div>
+            </div>
+        </div>
+    </div>
     <script src="/js/controller.js"></script>
 </body>
 </html>

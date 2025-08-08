@@ -109,7 +109,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function updatePanelHeaders(languages) {
         // 모든 번역 패널을 일단 숨김
         transPanels.forEach(panel => panel.style.display = 'none');
-
+		
+		gridContainer.classList.remove('grid-container1', 'grid-container2', 'grid-container3');
+		
+		const langCount = languages.length;
+		if (langCount >= 1 && langCount <= 3) {
+			gridContainer.classList.add(`grid-container${langCount}`);
+		}
+		 
         // 설정된 언어에 따라 필요한 패널만 표시
         languages.forEach((langCode, i) => {
             if (i < transPanels.length) {

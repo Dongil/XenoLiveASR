@@ -10,7 +10,7 @@ import noisereduce as nr
 from typing import Dict
 
 from config import (
-    VAD_AGGRESSIVENESS, VAD_FRAME_MS, VAD_BYTES_PER_FRAME, SILENCE_THRESHOLD_S,
+    VAD_AGGRESSIVENESS, VAD_FRAME_MS, VAD_BYTES_PER_FRAME,
     MIN_AUDIO_DURATION_S, SAMPLE_RATE
 )
 
@@ -47,12 +47,12 @@ async def create_ffmpeg_process(stream_id: str):
 
 # --- VAD 기반 PCM 처리 태스크 ---
 # [핵심 수정] 이 함수는 이제 WhisperModel 객체를 직접 받으므로, 타입 힌팅이 필요 없음
-async def pcm_processing_task(stream_id: str, pcm_queue: asyncio.Queue, text_queue: asyncio.Queue, text_buffer_ref: Dict, whisper_model):
+async def pcm_processing_task(stream_id: str, pcm_queue: asyncio.Queue, text_queue: asyncio.Queue, text_buffer_ref: Dict, whisper_model, silence_threshold_s: float):
     logging.info(f"[{stream_id}] PCM 처리 태스크 시작됨.")
     vad = webrtcvad.Vad(VAD_AGGRESSIVENESS)
     pcm_buffer, speech_buffer = bytearray(), bytearray()
     is_speaking, silence_frames_count = False, 0
-    max_silence_frames = int(SILENCE_THRESHOLD_S * 1000 / VAD_FRAME_MS)
+    max_silence_frames = int(silence_threshold_s * 1000 / VAD_FRAME_MS)
     min_audio_bytes = int(MIN_AUDIO_DURATION_S * SAMPLE_RATE * 2)
 
     try:
@@ -60,7 +60,8 @@ async def pcm_processing_task(stream_id: str, pcm_queue: asyncio.Queue, text_que
             pcm_chunk = await pcm_queue.get()
             pcm_buffer.extend(pcm_chunk)
             while len(pcm_buffer) >= VAD_BYTES_PER_FRAME:
-                frame = pcm_buffer[:VAD_BYTES_PER_FRAME]; pcm_buffer = pcm_buffer[VAD_BYTES_PER_FRAME:]
+                frame = pcm_buffer[:VAD_BYTES_PER_FRAME];
+                pcm_buffer = pcm_buffer[VAD_BYTES_PER_FRAME:]
                 is_speech = vad.is_speech(frame, SAMPLE_RATE)
                 if is_speaking:
                     speech_buffer.extend(frame)

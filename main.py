@@ -72,35 +72,35 @@ async def websocket_watch_endpoint(websocket: WebSocket, stream_id: str):
         stream_manager.remove_session_if_empty(stream_id)
 
 # --- http 서버 실행 ---
-if __name__ == '__main__':
-    HOST = '0.0.0.0'
-    PORT = 65432
-    if not config.DEEPL_API_KEY:
-        print("\n\033[93m경고: DEEPL_API_KEY 환경 변수가 없어 번역 기능이 비활성화됩니다.\033[0m")
-    
-    print(f"FastAPI 서버 시작 (http://{HOST}:{PORT})")
-    print("사용 예시:")
-    print(f"  - 컨트롤러: http://127.0.0.1:{PORT}/liveasr/my_stream_1")
-    print(f"  - 뷰어: http://127.0.0.1:{PORT}/liveasr/watch/my_stream_1")
-    
-    uvicorn.run("main:app", host=HOST, port=PORT, reload=False)
-
-# --- https 서버 실행 ---
 # if __name__ == '__main__':
 #     HOST = '0.0.0.0'
-#     PORT = 8448  # 일반적으로 HTTPS는 443 포트 사용
+#     PORT = 65432
 #     if not config.DEEPL_API_KEY:
-#          print("\n\033[93m경고: DEEPL_API_KEY 환경 변수가 없어 번역 기능이 비활성화됩니다.\033[0m")
-
+#         print("\n\033[93m경고: DEEPL_API_KEY 환경 변수가 없어 번역 기능이 비활성화됩니다.\033[0m")
+    
 #     print(f"FastAPI 서버 시작 (http://{HOST}:{PORT})")
 #     print("사용 예시:")
 #     print(f"  - 컨트롤러: http://127.0.0.1:{PORT}/liveasr/my_stream_1")
 #     print(f"  - 뷰어: http://127.0.0.1:{PORT}/liveasr/watch/my_stream_1")
     
-#     uvicorn.run(
-#         app,
-#         host=HOST,
-#         port=PORT,
-#         ssl_keyfile="D:/AutoSet9/server/conf/newkey.pem",         # 개인 키 파일
-#         ssl_certfile="D:/AutoSet9/server/conf/xenoglobal.co.kr-fullchain.pem",    # 인증서 파일
-#     )
+#     uvicorn.run("main:app", host=HOST, port=PORT, reload=False)
+
+# --- https 서버 실행 ---
+if __name__ == '__main__':
+    HOST = '0.0.0.0'
+    PORT = 8448  # 일반적으로 HTTPS는 443 포트 사용
+    if not config.DEEPL_API_KEY:
+         print("\n\033[93m경고: DEEPL_API_KEY 환경 변수가 없어 번역 기능이 비활성화됩니다.\033[0m")
+
+    print(f"FastAPI 서버 시작 (http://{HOST}:{PORT})")
+    print("사용 예시:")
+    print(f"  - 컨트롤러: http://127.0.0.1:{PORT}/liveasr/my_stream_1")
+    print(f"  - 뷰어: http://127.0.0.1:{PORT}/liveasr/watch/my_stream_1")
+    
+    uvicorn.run(
+        app,
+        host=HOST,
+        port=PORT,
+        ssl_keyfile="D:/AutoSet9/server/conf/newkey.pem",         # 개인 키 파일
+        ssl_certfile="D:/AutoSet9/server/conf/xenoglobal.co.kr-fullchain.pem",    # 인증서 파일
+    )

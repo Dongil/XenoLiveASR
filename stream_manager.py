@@ -8,54 +8,78 @@ from typing import List, Dict, Optional
 from collections import deque
 from fastapi import WebSocket, WebSocketDisconnect
 
-from models import WhisperModel, translator_instance
+from models import WhisperModel, TRANSLATORS
 from audio_processing import create_ffmpeg_process, pcm_processing_task
 from config import (
     CONNECTING_WORDS, CONNECTING_ENDINGS, TRANSLATION_TIMEOUT_S, 
-    MIN_LENGTH_FOR_TIMEOUT_TRANSLATION
+    MIN_LENGTH_FOR_TIMEOUT_TRANSLATION, SILENCE_THRESHOLD_S, TRANSLATION_ENGINE
 )
 
 class StreamSession:
     def __init__(self, stream_id: str, manager: 'StreamManager'):
-        self.stream_id = stream_id; self.manager = manager; self.controller: Optional[WebSocket] = None
-        self.viewers: List[WebSocket] = []; self.background_tasks: List[asyncio.Task] = []
-        self.config: Dict = {'type': 'config', 'languages': []}; self.cache: deque = deque(maxlen=8); self.lock = asyncio.Lock()
+        self.stream_id = stream_id; 
+        self.manager = manager; 
+        self.controller: Optional[WebSocket] = None
+        self.viewers: List[WebSocket] = []; 
+        self.background_tasks: List[asyncio.Task] = []
+         # [수정] 세션별 설정값 저장 변수 추가 및 기본값으로 초기화
+        self.silence_threshold = SILENCE_THRESHOLD_S
+        self.translation_engine = TRANSLATION_ENGINE
+
+        self.config_data: Dict = {'type': 'config', 'languages': []} 
+        self.cache: deque = deque(maxlen=8); 
+        self.lock = asyncio.Lock()
         self.proc: Optional[asyncio.subprocess.Process] = None
         self.pcm_queue: Optional[asyncio.Queue] = None
-        logging.info(f"[{stream_id}] 새로운 스트림 세션 생성됨.")
+        logging.info(f"[{stream_id}] 새로운 스트림 세션 생성됨. (침묵 구간: {self.silence_threshold}s, 엔진: {self.translation_engine})")
 
     async def add_viewer(self, websocket: WebSocket):
-        await websocket.accept(); self.viewers.append(websocket)
+        await websocket.accept(); 
+        self.viewers.append(websocket)
         logging.info(f"[{self.stream_id}] 뷰어 연결됨. (총 {len(self.viewers)}명)")
-        await websocket.send_json(self.config)
-        for result in list(self.cache): await websocket.send_json(result)
+        await websocket.send_json(self.config_data)
+        for result in list(self.cache): 
+            await websocket.send_json(result)
 
     def remove_viewer(self, websocket: WebSocket):
         self.viewers.remove(websocket)
         logging.info(f"[{self.stream_id}] 뷰어 연결 끊김. (남은 뷰어: {len(self.viewers)}명)")
 
     async def broadcast_to_viewers_and_cache(self, data: dict):
-        if data.get('type') == 'config': self.config = data; self.cache.clear()
-        elif data.get('type') in ['final_result', 'translation_result']: self.cache.append(data)
-        if self.viewers: await asyncio.gather(*[ws.send_json(data) for ws in self.viewers], return_exceptions=False)
+        broadcast_data = data  # 기본적으로는 받은 데이터 그대로 브로드캐스트
+        if data.get('type') == 'config':
+            self.config_data['languages'] = data.get('languages', [])
+            self.cache.clear()
+            # 뷰어에게는 언어 설정만 포함된 config_data를 보냄
+            broadcast_data = self.config_data
+        elif data.get('type') in ['final_result', 'translation_result']:
+            self.cache.append(data)
+
+        if self.viewers:
+            # [핵심 수정] data -> broadcast_data 로 변경하여 올바른 데이터를 전송
+            await asyncio.gather(*[ws.send_json(broadcast_data) for ws in self.viewers], return_exceptions=False)
             
     async def _reset_processing_tasks(self, whisper_model: WhisperModel):
         logging.info(f"[{self.stream_id}] FFmpeg 및 처리 태스크를 초기화/재설정합니다...")
         for task in self.background_tasks:
-            if not task.done(): task.cancel()
+            if not task.done(): 
+                task.cancel()
         await asyncio.gather(*self.background_tasks, return_exceptions=True)
         self.background_tasks.clear()
 
         if self.proc and self.proc.returncode is None:
-            if self.proc.stdin and not self.proc.stdin.is_closing(): self.proc.stdin.close()
+            if self.proc.stdin and not self.proc.stdin.is_closing(): 
+                self.proc.stdin.close()
             await self.proc.wait()
         
-        self.pcm_queue = asyncio.Queue(); text_queue = asyncio.Queue(); text_buffer_ref = {'buffer': ""}
+        self.pcm_queue = asyncio.Queue(); 
+        text_queue = asyncio.Queue(); 
+        text_buffer_ref = {'buffer': ""}
         self.proc = await create_ffmpeg_process(self.stream_id)
 
-        # [핵심 수정] 외부 함수를 직접 태스크로 생성. 더 이상 _pcm_processing_task 메소드는 없음.
+       # [핵심 수정] pcm_processing_task에 세션별 침묵 구간(self.silence_threshold) 값을 전달
         tasks = [
-            pcm_processing_task(self.stream_id, self.pcm_queue, text_queue, text_buffer_ref, whisper_model),
+            pcm_processing_task(self.stream_id, self.pcm_queue, text_queue, text_buffer_ref, whisper_model, self.silence_threshold),
             self._text_processing_task(text_queue, text_buffer_ref),
             self._read_stdout(self.proc, self.pcm_queue),
             self._read_stderr(self.proc)
@@ -65,6 +89,23 @@ class StreamSession:
 
     async def set_controller(self, websocket: WebSocket, whisper_model: WhisperModel):
         self.controller = websocket
+
+        # [추가] 컨트롤러 연결 시, 현재 서버의 설정을 클라이언트로 전송
+        try:
+            initial_settings = {
+                "type": "session_init",
+                "settings": {
+                    "silence_threshold": self.silence_threshold,
+                    "translation_engine": self.translation_engine
+                }
+            }
+            await websocket.send_json(initial_settings)
+            logging.info(f"[{self.stream_id}] 컨트롤러에게 초기 설정 전송: {initial_settings['settings']}")
+        except WebSocketDisconnect:
+            logging.warning(f"[{self.stream_id}] 초기 설정 전송 중 컨트롤러 연결 끊김.")
+            self.controller = None
+            return
+        
         try:
             logging.info(f"[{self.stream_id}] 컨트롤러 루프 시작. 메시지 대기 중...")
             while True:
@@ -72,18 +113,30 @@ class StreamSession:
                 if 'text' in message:
                     data = json.loads(message['text'])
                     logging.info(f"[{self.stream_id}] 컨트롤러로부터 텍스트 메시지 수신: {data}")
+                    
                     if data.get('type') == 'stream_start':
+                        logging.info(f"[{self.stream_id}] 컨트롤러로부터 스트림 시작 요청 수신.")
                         await self._reset_processing_tasks(whisper_model)
+
                     elif data.get('type') == 'config':
-                        config_data = {'type': 'config', 'languages': data.get('languages', [])}
-                        logging.info(f"[{self.stream_id}] 컨트롤러 번역 언어 설정: {config_data['languages']}")
-                        await self.broadcast_to_viewers_and_cache(config_data)
+                        # 세션의 설정 값을 클라이언트가 보낸 값으로 업데이트
+                        self.silence_threshold = data.get('silence_threshold', self.silence_threshold)
+                        self.translation_engine = data.get('translation_engine', self.translation_engine)
+
+                        # 번역 언어 설정은 기존 로직대로 처리하여 뷰어에게 브로드캐스팅
+                        lang_config_data = {'type': 'config', 'languages': data.get('languages', [])}
+                        
+                        logging.info(f"[{self.stream_id}] 컨트롤러 설정 변경: 언어={lang_config_data['languages']}, 침묵={self.silence_threshold}s, 엔진='{self.translation_engine}'")
+                        await self.broadcast_to_viewers_and_cache(lang_config_data)
+
                 elif 'bytes' in message:
                     logging.debug(f"[{self.stream_id}] 컨트롤러로부터 {len(message['bytes'])} 바이트 수신.")
                     if self.proc and self.proc.stdin and not self.proc.stdin.is_closing():
-                        self.proc.stdin.write(message['bytes']); await self.proc.stdin.drain()
+                        self.proc.stdin.write(message['bytes']); 
+                        await self.proc.stdin.drain()
                     else:
                         logging.warning(f"[{self.stream_id}] FFmpeg 프로세스가 준비되지 않아 오디오 데이터를 무시합니다.")
+
         except (WebSocketDisconnect, RuntimeError):
             logging.info(f"[{self.stream_id}] 컨트롤러 연결이 정상적으로 종료되었습니다.")
         except Exception as e:
@@ -118,7 +171,8 @@ class StreamSession:
                 nonlocal text_buffer, last_text_received_time
                 async with self.lock:
                     current_buffer = text_buffer.strip()
-                    if not current_buffer: return
+                    if not current_buffer: 
+                        return
                     should_translate = False
                     last_word = current_buffer.split()[-1] if current_buffer else ""
                     is_semantically_incomplete = any(last_word.endswith(e) for e in CONNECTING_ENDINGS) or last_word in CONNECTING_WORDS
@@ -144,20 +198,30 @@ class StreamSession:
                             await self.controller.send_json(final_payload)
                         await self.broadcast_to_viewers_and_cache(final_payload)
                         
-                        active_languages = self.config.get('languages', [])
-                        if active_languages and translator_instance:
+                         # --- [핵심 수정] 번역기 선택 로직 ---
+                        active_languages = self.config_data.get('languages', [])
+                        # 1. 세션에 설정된 엔진 이름으로 사용 가능한 번역기 인스턴스를 가져옴
+                        translator = TRANSLATORS.get(self.translation_engine)
+
+                        # 2. 번역할 언어가 있고, 선택된 번역기가 사용 가능한 상태일 때만 번역 수행
+                        if active_languages and translator:
+                            logging.info(f"[{self.stream_id}] '{self.translation_engine}' 엔진으로 번역을 수행합니다.")
                             translations_dict = {}
                             translation_tasks = []
                             for lang in active_languages:
                                 async def translate_and_store(l):
-                                    translations_dict[l] = await translator_instance.translate(final_original_text, l)
+                                    # 3. 가져온 translator 인스턴스의 translate 메서드 호출
+                                    translations_dict[l] = await translator.translate(final_original_text, l)
                                 translation_tasks.append(translate_and_store(lang))
                             await asyncio.gather(*translation_tasks)
+
                             for lang_code, translated_text in translations_dict.items():
                                 trans_payload = {'type': 'translation_result', 'original_id': result_id, 'lang': lang_code, 'text': translated_text}
                                 if self.controller:
                                     await self.controller.send_json(trans_payload)
                                 await self.broadcast_to_viewers_and_cache(trans_payload)
+                        elif active_languages:
+                            logging.warning(f"[{self.stream_id}] '{self.translation_engine}' 번역기가 선택되었으나, 서버에서 사용할 수 없습니다. (API 키 확인 필요)")
             
             async def text_consumer():
                 nonlocal text_buffer, last_text_received_time
