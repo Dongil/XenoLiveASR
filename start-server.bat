@@ -8,6 +8,7 @@ setlocal
 :: !! 실행 환경을 'production'으로 설정 !!
 set APP_ENV=production
 
+:: 1. 이 배치 파일이 있는 폴더로 작업 디렉토리를 강제 이동
 cd /d "%~dp0"
 
 echo.
@@ -16,14 +17,28 @@ echo   LiveWhisper Server for Xenoglobal
 echo =============================================================
 echo.
 
-IF NOT EXIST .\.venv\Scripts\activate (
-    echo [ERROR] Virtual environment (.venv) not found.
+:: 2. 가상 환경(.venv) 존재 여부 확인 (수정된 부분)
+::    - 괄호를 제거하고, 경로를 큰따옴표로 감싸서 안정성을 높입니다.
+IF NOT EXIST ".\.venv\Scripts\activate.bat" GOTO venv_error
+
+GOTO venv_ok
+
+:venv_error
+    echo [ERROR] Virtual environment (.venv) not found in %cd%
+    echo Please run the setup script first.
     pause
     exit /b 1
-)
 
-call .\.venv\Scripts\activate
+:venv_ok
+    echo Virtual environment found.
 
+:: 3. 가상 환경 활성화
+echo Activating virtual environment...
+call ".\.venv\Scripts\activate.bat"
+
+:: 4. FastAPI 서버 실행
+echo.
+echo Starting FastAPI server...
 python main.py %*
 
 echo.
