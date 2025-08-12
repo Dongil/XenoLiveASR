@@ -47,7 +47,7 @@ async def create_ffmpeg_process(stream_id: str):
 
 # --- VAD 기반 PCM 처리 태스크 ---
 # [핵심 수정] 이 함수는 이제 WhisperModel 객체를 직접 받으므로, 타입 힌팅이 필요 없음
-async def pcm_processing_task(stream_id: str, pcm_queue: asyncio.Queue, text_queue: asyncio.Queue, text_buffer_ref: Dict, whisper_model, silence_threshold_s: float):
+async def pcm_processing_task(stream_id: str, pcm_queue: asyncio.Queue, text_queue: asyncio.Queue, text_buffer_ref: Dict, whisper_model, silence_threshold_s: float, whisper_options: Dict, options_lock: asyncio.Lock):
     logging.info(f"[{stream_id}] PCM 처리 태스크 시작됨.")
     vad = webrtcvad.Vad(VAD_AGGRESSIVENESS)
     pcm_buffer, speech_buffer = bytearray(), bytearray()
@@ -71,8 +71,20 @@ async def pcm_processing_task(stream_id: str, pcm_queue: asyncio.Queue, text_que
                             is_speaking = False
                             if len(speech_buffer) > min_audio_bytes:
                                 audio_np = np.frombuffer(speech_buffer, dtype=np.int16).copy()
-                                original = await whisper_model.transcribe(audio_np, previous_text=text_buffer_ref['buffer'])
-                                if original: await text_queue.put(original)
+                                
+                                # [중요 수정] 전사 직전에 최신 옵션의 복사본을 가져옴
+                                async with options_lock:
+                                    current_transcribe_options = whisper_options.copy()
+
+                                original = await whisper_model.transcribe(
+                                    audio_np, 
+                                    previous_text=text_buffer_ref['buffer'], 
+                                    options=current_transcribe_options # 복사본을 전달
+                                )
+
+                                if original: 
+                                    await text_queue.put(original)
+
                             speech_buffer.clear()
                     else: silence_frames_count = 0
                 elif is_speech: is_speaking, silence_frames_count = True, 0; speech_buffer.extend(frame)

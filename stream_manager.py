@@ -4,6 +4,7 @@ import asyncio
 import logging
 import json
 import time
+import os
 from typing import List, Dict, Optional
 from collections import deque
 from fastapi import WebSocket, WebSocketDisconnect
@@ -25,13 +26,47 @@ class StreamSession:
          # [수정] 세션별 설정값 저장 변수 추가 및 기본값으로 초기화
         self.silence_threshold = SILENCE_THRESHOLD_S
         self.translation_engine = TRANSLATION_ENGINE
+        
+        # [추가] Whisper 파라미터 저장을 위한 딕셔너리
+        self.whisper_options: Dict = {}
+        self.options_lock = asyncio.Lock()  # 옵션 딕셔너리 접근을 위한 잠금
 
         self.config_data: Dict = {'type': 'config', 'languages': []} 
         self.cache: deque = deque(maxlen=8); 
-        self.lock = asyncio.Lock()
         self.proc: Optional[asyncio.subprocess.Process] = None
         self.pcm_queue: Optional[asyncio.Queue] = None
-        logging.info(f"[{stream_id}] 새로운 스트림 세션 생성됨. (침묵 구간: {self.silence_threshold}s, 엔진: {self.translation_engine})")
+
+        logging.info(f"[{stream_id}] 새로운 스트림 세션 생성됨.")
+    
+    # [수정] 비동기 함수로 변경하여 I/O 블로킹 방지
+    async def _load_options_from_file(self):
+        async with self.options_lock:
+            options_path = f"uploads/{self.stream_id}.json"
+            if os.path.exists(options_path):
+                try:
+                    with open(options_path, 'r', encoding='utf-8') as f:
+                        self.whisper_options = json.load(f)
+                    logging.info(f"[{self.stream_id}] 저장된 파라미터를 로드했습니다: {options_path}")
+                except (json.JSONDecodeError, IOError) as e:
+                    logging.error(f"[{self.stream_id}] 파라미터 파일 로드 실패: {e}, 기본값을 사용합니다.")
+                    self.whisper_options = {}
+            else:
+                logging.info(f"[{self.stream_id}] 저장된 파라미터 파일이 없습니다. 기본값을 사용합니다.")
+
+    # [수정] 비동기 함수로 변경하고 잠금 사용
+    async def _save_options_to_file(self):
+        async with self.options_lock:
+            options_path = f"uploads/{self.stream_id}.json"
+            try:
+                # 비동기 파일 쓰기 (더 안전하지만, 여기서는 동기식으로도 충분)
+                # import aiofiles
+                # async with aiofiles.open(options_path, 'w', encoding='utf-8') as f:
+                #     await f.write(json.dumps(self.whisper_options, ensure_ascii=False, indent=2))
+                with open(options_path, 'w', encoding='utf-8') as f:
+                    json.dump(self.whisper_options, f, ensure_ascii=False, indent=2)
+                logging.info(f"[{self.stream_id}] 파라미터를 파일에 저장했습니다: {options_path}")
+            except IOError as e:
+                logging.error(f"[{self.stream_id}] 파라미터 파일 저장 실패: {e}")
 
     async def add_viewer(self, websocket: WebSocket):
         await websocket.accept(); 
@@ -77,30 +112,40 @@ class StreamSession:
         text_buffer_ref = {'buffer': ""}
         self.proc = await create_ffmpeg_process(self.stream_id)
 
-       # [핵심 수정] pcm_processing_task에 세션별 침묵 구간(self.silence_threshold) 값을 전달
+        # [중요 수정] pcm_processing_task에 self.whisper_options 딕셔너리 자체를 전달
+        # 이렇게 하면 pcm_processing_task 내부에서 항상 최신 값을 참조할 수 있습니다.
         tasks = [
-            pcm_processing_task(self.stream_id, self.pcm_queue, text_queue, text_buffer_ref, whisper_model, self.silence_threshold),
+            pcm_processing_task(self.stream_id, self.pcm_queue, text_queue, text_buffer_ref, whisper_model, self.silence_threshold, self.whisper_options, self.options_lock),
             self._text_processing_task(text_queue, text_buffer_ref),
             self._read_stdout(self.proc, self.pcm_queue),
             self._read_stderr(self.proc)
         ]
         self.background_tasks = [asyncio.create_task(t) for t in tasks]
         logging.info(f"[{self.stream_id}] {len(self.background_tasks)}개의 새로운 백그라운드 태스크 시작 완료.")
-
+    
     async def set_controller(self, websocket: WebSocket, whisper_model: WhisperModel):
         self.controller = websocket
 
-        # [추가] 컨트롤러 연결 시, 현재 서버의 설정을 클라이언트로 전송
+        # [수정] 컨트롤러 연결 시점에 파일에서 최신 옵션 로드
+        await self._load_options_from_file()
+        
+        # 파일에서 로드한 옵션이 없다면 (비어있다면) 모델의 기본값으로 채움
+        async with self.options_lock:
+            if not self.whisper_options:
+                self.whisper_options = whisper_model.transcribe_options.copy()
+                logging.info(f"[{self.stream_id}] Whisper 기본 파라미터를 적용합니다.")
+        
         try:
             initial_settings = {
                 "type": "session_init",
                 "settings": {
                     "silence_threshold": self.silence_threshold,
-                    "translation_engine": self.translation_engine
+                    "translation_engine": self.translation_engine,
+                    "whisper_params": self.whisper_options
                 }
             }
             await websocket.send_json(initial_settings)
-            logging.info(f"[{self.stream_id}] 컨트롤러에게 초기 설정 전송: {initial_settings['settings']}")
+            logging.info(f"[{self.stream_id}] 컨트롤러에게 초기 설정 전송 완료.")
         except WebSocketDisconnect:
             logging.warning(f"[{self.stream_id}] 초기 설정 전송 중 컨트롤러 연결 끊김.")
             self.controller = None
@@ -117,7 +162,14 @@ class StreamSession:
                     if data.get('type') == 'stream_start':
                         logging.info(f"[{self.stream_id}] 컨트롤러로부터 스트림 시작 요청 수신.")
                         await self._reset_processing_tasks(whisper_model)
-
+                    elif data.get('type') == 'tuning':   # 'tuning' 타입 메시지 처리 로직
+                        params_to_update = data.get('params', {})
+                        # [수정] 잠금을 사용하여 안전하게 업데이트
+                        async with self.options_lock:
+                            self.whisper_options.update(params_to_update)
+                        logging.info(f"[{self.stream_id}] Whisper 파라미터 업데이트됨: {params_to_update}")
+                        await self._save_options_to_file() # 변경된 내용을 파일에 저장
+                        await self.controller.send_json({"type": "tuning_ack", "status": "success", "message": "파라미터가 적용 및 저장되었습니다."})
                     elif data.get('type') == 'config':
                         # 세션의 설정 값을 클라이언트가 보낸 값으로 업데이트
                         self.silence_threshold = data.get('silence_threshold', self.silence_threshold)
@@ -128,7 +180,6 @@ class StreamSession:
                         
                         logging.info(f"[{self.stream_id}] 컨트롤러 설정 변경: 언어={lang_config_data['languages']}, 침묵={self.silence_threshold}s, 엔진='{self.translation_engine}'")
                         await self.broadcast_to_viewers_and_cache(lang_config_data)
-
                 elif 'bytes' in message:
                     logging.debug(f"[{self.stream_id}] 컨트롤러로부터 {len(message['bytes'])} 바이트 수신.")
                     if self.proc and self.proc.stdin and not self.proc.stdin.is_closing():

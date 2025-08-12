@@ -110,20 +110,48 @@ class WhisperModel:
         compute_type = "float16" if self.device == "cuda" else "int8"
         logging.info(f"Whisper 모델 로드 중 ({MODEL_NAME}, Device: {self.device}, Compute Type: {compute_type})...")
         self.model = FasterWhisperModel(MODEL_NAME, device=self.device, compute_type=compute_type)
+        
+        # 기본 전사 옵션 설정
+        self.transcribe_options = {
+            "beam_size": 5,
+            "patience": 1,
+            "length_penalty": 1,
+            "repetition_penalty": 1.05,
+            "no_repeat_ngram_size": 3,
+            "temperature": (0.0, 0.2, 0.4, 0.6, 0.8),
+            "log_prob_threshold": -0.8,
+            "no_speech_threshold": 0.6,
+            "condition_on_previous_text": True,
+            "suppress_blank": True,
+            "suppress_tokens": [-1],
+            "word_timestamps": False,
+            "hotwords": []
+        }
         logging.info("모델 로드 완료.")
         
-    async def transcribe(self, audio_buffer: np.ndarray, previous_text: str = None) -> str:
+    async def transcribe(self, audio_buffer: np.ndarray, previous_text: str = None, options: dict = None) -> str:
         try:
             processed_audio = preprocess_audio(audio_buffer)
+
+            # 현재 세션의 옵션과 기본 옵션을 병합
+            current_options = self.transcribe_options.copy()
+            if options:
+                current_options.update(options)
+
+            # previous_text를 기반으로 옵션 업데이트
+            current_options['initial_prompt'] = previous_text
+            # condition_on_previous_text는 bool(previous_text)로 설정하는 것이 좋습니다.
+            current_options['condition_on_previous_text'] = bool(previous_text)
+
             segments, _ = await asyncio.to_thread(
                 self.model.transcribe,
                 processed_audio,
-                beam_size=5,
                 language=TARGET_LANGUAGE,
-                initial_prompt=previous_text,
-                condition_on_previous_text=bool(previous_text)
+                **current_options # **kwargs로 모든 옵션 전달
             )
+            
             full_text = "".join(segment.text for segment in segments).strip()
+
             if full_text:
                 hallucination_blacklist = ["감사합니다", "시청해주셔서 감사합니다", "한국어 음성 대화", "다음 영상에서 만나요."]
                 is_hallucination = any(word in full_text and len(full_text) < len(word) + 5 for word in hallucination_blacklist)

@@ -26,6 +26,13 @@ app_ready = asyncio.Event() # [핵심 추가] 앱 준비 상태를 알리는 이
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global whisper_model_instance
+
+    # [추가] 서버 시작 시 'uploads' 폴더 생성
+    uploads_dir = "uploads"
+    if not os.path.exists(uploads_dir):
+        os.makedirs(uploads_dir)
+        logging.info(f"'{uploads_dir}' 폴더를 생성했습니다.")
+
     whisper_model_instance = WhisperModel()
     app_ready.set() # [핵심 추가] 모델 로드가 끝나면, 앱이 준비되었음을 알림
     yield

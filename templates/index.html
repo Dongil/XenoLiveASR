@@ -47,17 +47,39 @@
                         <span>짧게</span>
                         <input type="range" id="silence-threshold-slider" min="0.2" max="1.5" step="0.1" value="0.6">
                         <span>길게</span>
-                        <span id="silence-threshold-value">0.6s</span>
+                        <span id="silence-threshold-value">0.6s</span>                        
                     </div>
                 </div>
                 <div class="setting-item">
                     <label for="translation-engine-select">번역 엔진:</label>
-                    <select id="translation-engine-select">
-                        <option value="deepl" selected>DeepL</option>
-                        <option value="papago">Papago</option>
-                        <option value="google">Google</option>
-                    </select>
-                </div>
+                    <!-- [추가] 번역 엔진과 토글 버튼을 묶는 div -->
+                    <div class="engine-control-wrapper">
+                        <select id="translation-engine-select" class ="engine-select">
+                            <option value="deepl" selected>DeepL</option>
+                            <option value="papago">Papago</option>
+                            <option value="google">Google</option>
+                        </select>
+                        <!-- [추가] 파라미터 영역 토글 버튼 -->
+                        <button id="param-toggle-btn" class="icon-btn" title="파라미터 설정 펼치기/접기">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="icon-expand">
+                                <path fill-rule="evenodd" d="M15.75 2.25H21a.75.75 0 0 1 .75.75v5.25a.75.75 0 0 1-1.5 0V4.81L12.97 12.1a.75.75 0 0 1-1.06 0L3.22 3.42a.75.75 0 0 1 1.06-1.06l8.69 8.69L20.19 3H15.75a.75.75 0 0 1 0-1.5Zm-10.5 15H3a.75.75 0 0 1-.75-.75V10.5a.75.75 0 0 1 1.5 0v3.44l7.32-7.32a.75.75 0 0 1 1.06 0l8.69 8.69a.75.75 0 0 1-1.06 1.06l-8.69-8.69L3.81 20.25H8.25a.75.75 0 0 1 0 1.5Z" clip-rule="evenodd" />
+                            </svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="icon-collapse" style="display: none;">
+                                <path fill-rule="evenodd" d="M8.25 2.25h-3a.75.75 0 0 0-.75.75v3a.75.75 0 0 0 1.5 0V3.81l5.97 5.97a.75.75 0 0 0 1.06 0l5.97-5.97v2.44a.75.75 0 0 0 1.5 0v-3a.75.75 0 0 0-.75-.75h-3a.75.75 0 0 0 0 1.5h2.44L12 9.94 5.81 3.75H8.25a.75.75 0 0 0 0-1.5ZM3 15.75a.75.75 0 0 0 .75.75h3a.75.75 0 0 0 0-1.5H3.81l5.97-5.97a.75.75 0 0 0-1.06-1.06L3 14.94v-2.44a.75.75 0 0 0-1.5 0v3a.75.75 0 0 0 .75.75Zm11.25 6h3a.75.75 0 0 0 .75-.75v-3a.75.75 0 0 0-1.5 0v2.44l-5.97-5.97a.75.75 0 0 0-1.06 1.06L18.19 20.25h-2.44a.75.75 0 0 0 0 1.5Z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>                
+            </div>
+
+            <div id="param-control-area" class="control-area" style="display: none;">
+                <!-- [수정] h2 태그 안에 도움말 아이콘 추가 -->
+                <h2>
+                    파라메터 변경 
+                    <span id="help-icon" class="help-icon" title="파라미터 설명 보기">?</span>
+                </h2>
+                <textarea id="tuning-text"></textarea>
+                <button id="tuning-btn">JSON으로 서버 전송</button>
             </div>
 
             <div class="control-area" id="mic-control-area">
@@ -77,8 +99,8 @@
                 
             </div> 
 
-            <div class="control-area" id="file-control-area" style="display:none">
-                <h2>2. 파일로 전송</h2>
+            <div class="control-area" id="file-control-area">
+                <h2>3. 파일로 전송</h2>
                 <input type="file" id="file-input" accept="audio/*,video/*">
                 <canvas id="waveform-canvas"></canvas>
                 <div class="player-controls">
@@ -87,32 +109,68 @@
                 </div>
             </div> 
 
-            <div class="control-area"style="display:none">
-                <h2>3. 브라우저 전송</h2>    
+            <div class="control-area">
+                <h2>4. 브라우저 전송</h2>    
                 <button id="tab-audio-btn">탭 오디오 캡처</button>
             </div>		
         </div>
 
-        <div class="container"style="display:none">
+        <div class="container">
           
             <div class="transcription-box">
                 <h3>음성 인식 내용</h3>
                 <div id="transcription-output" class="output-div"></div>
             </div>
             <div class="transcription-box">
-                <h3>번역 1 <select class="lang-select" id="lang-select-1"></select></h3>
+                <h3>번역 1 </h3>
                 <div id="translation-output-1" class="output-div"></div>
             </div>
             <div class="transcription-box">
-                <h3>번역 2 <select class="lang-select" id="lang-select-2"></select></h3>
+                <h3>번역 2</h3>
                 <div id="translation-output-2" class="output-div"></div>
             </div>
             <div class="transcription-box">
-                <h3>번역 3 <select class="lang-select" id="lang-select-3"></select></h3>
+                <h3>번역 3 </h3>
                 <div id="translation-output-3" class="output-div"></div>
             </div>
         </div>
     </div>
+
+        <!-- [추가] 도움말 팝업(모달) HTML 구조 -->
+        <div id="help-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-btn">&times;</span>
+                <h2>Whisper 파라미터 설명</h2>
+                <div class="modal-body">
+                    <dl>
+                        <dt>beam_size</dt>
+                        <dd><b>(기본값: 5)</b> 값이 클수록 더 많은 후보 문장을 탐색하여 정확도가 올라가지만, 처리 속도가 느려집니다. 실시간성이 중요하다면 3~5, 정확도가 중요하다면 5~7 사이에서 조절하는 것이 좋습니다. <code>5</code>는 훌륭한 시작점입니다.</dd>
+    
+                        <dt>patience</dt>
+                        <dd><b>(기본값: 1.0)</b> <code>beam_size</code>와 함께 작동하며, 더 나은 후보를 찾기 위해 탐색을 얼마나 더 지속할지 결정합니다. 값을 약간 높이면(예: 1.2) 정확도 향상에 도움이 될 수 있습니다.</dd>
+    
+                        <dt>repetition_penalty</dt>
+                        <dd><b>(기본값: 1.0)</b> 반복되는 단어나 구문을 억제합니다. 1.0보다 큰 값을 주면 패널티가 적용됩니다. <code>1.05</code> ~ <code>1.1</code> 정도의 작은 값은 "네네네네..." 와 같은 불필요한 반복을 줄이는 데 효과적입니다.</dd>
+    
+                        <dt>no_repeat_ngram_size</dt>
+                        <dd><b>(기본값: 0)</b> 지정된 크기(n)의 n-gram(연속된 단어 묶음)이 반복되지 않도록 합니다. <code>3</code>으로 설정하면 3개의 단어로 이루어진 구문이 반복되는 것을 방지하여 환각(hallucination) 억제에 도움이 됩니다.</dd>
+    
+                        <dt>temperature</dt>
+                        <dd><b>(기본값: 0)</b> 모델 출력의 무작위성을 조절합니다. 전사에서는 일관된 결과가 중요하므로 <code>0</code>으로 시작하는 것이 좋습니다. <code>[0.0, 0.2, 0.4, ...]</code>와 같이 리스트 형태로 제공하면, 모델이 특정 구간에서 확신이 없을 때 점차 높은 temperature 값으로 재시도하여 더 나은 결과를 찾도록 유도할 수 있습니다. (Fallback 기능)</dd>
+    
+                        <dt>log_prob_threshold</dt>
+                        <dd><b>(기본값: -1.0)</b> 이 값보다 낮은 확률을 가진 토큰(단어 조각)을 후보에서 제외합니다. 웅얼거리는 소리나 잡음이 "음성"으로 잘못 인식되는 것을 막는 데 매우 효과적입니다. 기본값(-1.0)은 아무것도 거르지 않으며, <code>-0.8</code> 정도로 설정하면 신뢰도 낮은 결과를 필터링할 수 있습니다.</dd>
+    
+                        <dt>no_speech_threshold</dt>
+                        <dd><b>(기본값: 0.6)</b> 오디오에 음성이 없다고 판단하는 임계값입니다. VAD가 1차로 걸러주지만, VAD를 통과한 짧은 잡음 등을 Whisper가 2차로 걸러내도록 할 수 있습니다. <code>0.6</code>은 합리적인 기본값입니다.</dd>
+    
+                        <dt>hotwords</dt>
+                        <dd>특정 단어(고유명사, 전문용어 등)의 인식률을 높이고 싶을 때 사용합니다. <code>["클라우드플레어", "파이토치"]</code>와 같이 리스트를 전달하면 해당 단어의 출력 확률을 높여줍니다.</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
     <script src="/js/controller.js"></script>
 </body>
 </html>

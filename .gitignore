@@ -71,3 +71,4 @@ venv.bak/
 *.env
 config.ini
 analog-octagon-466805-u4-ed4be9f05c20.json
+uploads/

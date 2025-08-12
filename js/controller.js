@@ -66,6 +66,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const silenceThresholdValue = document.getElementById('silence-threshold-value');
     const translationEngineSelect = document.getElementById('translation-engine-select');
     const openViewerLink = document.getElementById('open-viewer-link');
+    // [추가] 튜닝 관련 UI 요소
+    const tuningText = document.getElementById('tuning-text');
+    const tuningBtn = document.getElementById('tuning-btn');
+    // --- [추가] 모달 관련 UI 요소 ---
+    const helpIcon = document.getElementById('help-icon');
+    const helpModal = document.getElementById('help-modal');
+    const closeModalBtn = helpModal.querySelector('.close-btn');
+    // --- [추가] 토글 버튼 관련 UI 요소 ---
+    const paramToggleBtn = document.getElementById('param-toggle-btn');
+    const paramControlArea = document.getElementById('param-control-area');
+    const iconExpand = paramToggleBtn.querySelector('.icon-expand');
+    const iconCollapse = paramToggleBtn.querySelector('.icon-collapse');
     let socket, mediaRecorder, mediaStream, animationFrameId;
     let isStreaming = false;
     let currentMode = null;
@@ -126,6 +138,34 @@ document.addEventListener('DOMContentLoaded', () => {
         select.addEventListener('change', updateSettingsOnServer);
     });
     
+    // [추가] 'JSON으로 서버 전송' 버튼 클릭 이벤트 리스너
+    tuningBtn.addEventListener('click', () => {
+        try {
+            // textarea의 텍스트를 JSON 객체로 파싱
+            const params = JSON.parse(tuningText.value);
+            
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                const message = {
+                    type: 'tuning',
+                    params: params
+                };
+                socket.send(JSON.stringify(message));
+                console.log("서버로 튜닝 파라미터 전송:", message);
+                // 사용자에게 피드백을 주기 위해 버튼 텍스트 잠시 변경
+                const originalText = tuningBtn.textContent;
+                tuningBtn.textContent = '전송 완료!';
+                tuningBtn.style.backgroundColor = '#4CAF50';
+                setTimeout(() => {
+                    tuningBtn.textContent = originalText;
+                    tuningBtn.style.backgroundColor = '';
+                }, 2000);
+            }
+        } catch (e) {
+            alert('JSON 형식이 올바르지 않습니다. 코드를 다시 확인해주세요.\n오류: ' + e.message);
+            console.error("JSON 파싱 오류:", e);
+        }
+    });
+
     // --- 오디오 컨텍스트 관리 ---
     function getAudioContext() {
         if (!audioContext) {
@@ -412,6 +452,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         // [핵심 수정] 서버에서 받은 엔진 정보로 언어 목록 업데이트
                         populateLanguageSelects(engine);
                     }
+
+                    // [추가] Whisper 파라미터를 textarea에 표시
+                    if (data.settings.whisper_params) {
+                        // JSON.stringify의 세 번째 인자(2)는 들여쓰기 칸 수를 의미
+                        tuningText.value = JSON.stringify(data.settings.whisper_params, null, 2);
+                    }
+                    break;
+                case "tuning_ack":  // [추가] 튜닝 성공/실패에 대한 피드백 처리
+                    console.log("서버로부터 튜닝 확인 메시지 수신:", data);
+                    // alert(data.message); // 필요하다면 alert로 알림
                     break;
                 case "interim_result":
                     updateOutput(outputElem, data.text, "interim");
@@ -522,4 +572,63 @@ document.addEventListener('DOMContentLoaded', () => {
             socket.send(JSON.stringify(configMessage));
         }
     }
+
+    // --- [추가] 파라미터 영역 토글 이벤트 리스너 ---
+    paramToggleBtn.addEventListener('click', () => {
+        // 현재 파라미터 영역이 보이는지 여부를 확인
+        const isVisible = paramControlArea.style.display === 'block';
+
+        if (isVisible) {
+            // 영역 숨기기
+            paramControlArea.classList.add('slide-up');
+            paramControlArea.classList.remove('slide-down');
+            // 애니메이션이 끝난 후 display를 none으로 변경
+            setTimeout(() => {
+                paramControlArea.style.display = 'none';
+            }, 400); // CSS의 transition 시간과 일치시킴
+
+            // 아이콘 변경: 축소 -> 확대
+            iconCollapse.style.display = 'none';
+            iconExpand.style.display = 'inline-block';
+            paramToggleBtn.title = '파라미터 설정 펼치기';
+        } else {
+            // 영역 보이기
+            paramControlArea.style.display = 'block';
+            // display가 block으로 바뀐 후, 클래스를 추가하여 애니메이션 트리거
+            setTimeout(() => {
+                paramControlArea.classList.add('slide-down');
+                paramControlArea.classList.remove('slide-up');
+            }, 10); // 아주 짧은 딜레이
+
+            // 아이콘 변경: 확대 -> 축소
+            iconExpand.style.display = 'none';
+            iconCollapse.style.display = 'inline-block';
+            paramToggleBtn.title = '파라미터 설정 접기';
+        }
+    });
+
+    // --- [추가] 모달 이벤트 리스너 ---
+    // 도움말 아이콘 클릭 시 모달 열기
+    helpIcon.addEventListener('click', () => {
+        helpModal.style.display = 'block';
+    });
+
+    // 닫기(X) 버튼 클릭 시 모달 닫기
+    closeModalBtn.addEventListener('click', () => {
+        helpModal.style.display = 'none';
+    });
+
+    // 모달 바깥 영역 클릭 시 모달 닫기
+    window.addEventListener('click', (event) => {
+        if (event.target === helpModal) {
+            helpModal.style.display = 'none';
+        }
+    });
+
+    // ESC 키 눌렀을 때 모달 닫기
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && helpModal.style.display === 'block') {
+            helpModal.style.display = 'none';
+        }
+    });
 });

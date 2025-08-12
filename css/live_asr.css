@@ -1,81 +1,660 @@
-body { display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 2rem 0; }
-.container-wrapper { display: flex; width: 100%; max-width: 1600px; justify-content: center; }
-.container { position:relative; width: 45%;  min-width: 500px; background-color: #fff; padding:20px 2rem; border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2); }
-h1, h2 { font-size:24px; font-weight:700; color: #bb86fc; text-align: center; margin-bottom: 2rem; }
-h2 { font-size: 20px; margin-bottom: 1.5rem; }
-h3 { display: flex; align-items: center; } /* justify-content: space-between; */
-h3 span, 
-h3 select  {margin-left: 1rem;}
-.status-box { margin-bottom: 1rem; border: 1px solid #ccc; padding: 0 1rem; border-radius: 8px; } 
-.transcription-box { margin-bottom: 1rem; }
-.control-area { text-align: center; padding: 1.5rem; border: 1px dashed #444; border-radius: 8px; margin-bottom: 1rem; }
-.control-area .lang_select_box div {display:inline-block; width:30%;}
-.control-area.disabled { opacity: 0.4; pointer-events: none; }
-label { display:inline-block; margin-bottom: 0.5rem; text-align: left; }
-.mic-select { display:inline-block; width:45%; margin-bottom: 0.5rem; }
-select, button, input[type="file"]::file-selector-button { padding: 10px 15px; font-size: 16px; border-radius: 5px; border: 1px solid #333; cursor: pointer; transition: background-color 0.2s; }
-button { background-color: #03dac6; font-weight: bold; border: none; margin: 0 5px; }
-button:disabled { background-color: #ccc; color: #eaeaea; cursor: not-allowed; }
-button.recording, button.playing { background-color: #cf6679; }
-#status { font-style: italic; color: #a0a0a0; }
-.output-div { background-color: #f1f4ff; padding: 1rem; border-radius: 5px; min-height: 130px; max-height: 150px; overflow-y: auto; text-align: left; white-space: pre-wrap; border: 1px solid #cfd7e8; }
-.output-div p { margin: 0 0 0.5em 0; padding: 0.2em 0.4em; border-bottom: 1px solid #3a3a3a; transition: background-color 0.3s; }
-.lang-select { border: 1px solid #555; font-size: 14px; padding: 5px 8px; }
-#waveform-canvas { width: 100%; height: 40px; background-color: #f1f4ff;  border: 1px solid #cfd7e8;  border-radius: 5px; margin: 1rem 0; }
-.player-controls button { background-color: #fff; font-size: 20px; padding: 8px 12px; }
-.output-div p.final-result { animation: background-fade 1.5s ease-out; font-weight: 500; }
-.output-div p.interim-typing::after { content: ''; animation: blink 0.7s step-end infinite; }
-#rejection-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.85); color: #fff; display: none; justify-content: center; align-items: center; text-align: center; z-index: 1000; }
-.overlay-content { background-color: #2e2e2e; padding: 2rem 3rem; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
-.overlay-content h2 { color: #cf6679; }
-.open-viewer { position: absolute; top: 30px; right: 30px; width:40px; height:40px; border-radius:20px; background:#2563eb; text-align:center; font-size:26px; font-weight:bold; color:#fff; line-height: 36px; text-decoration: none; }
-
-@keyframes background-fade { 0% { background-color: rgba(187, 134, 252, 0.2); } 100% { background-color: transparent; } }
-@keyframes blink { 50% { opacity: 0; } }
-
-/* [추가] 설정 영역 스타일 */
-.settings-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 2rem; }
-.setting-item { flex: 1; text-align: left; }
-.setting-item select {}
-.slider-container { display: flex; align-items: center; gap: 10px; }
-.slider-container span  {width:50px;}
-input[type="range"] { flex-grow: 1; -webkit-appearance: none; appearance: none; width: 100%; height: 8px; background: #444; outline: none; border-radius: 4px; }
-input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: #03dac6; cursor: pointer; border-radius: 50%; }
-input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; background: #03dac6; cursor: pointer; border-radius: 50%; }
-#silence-threshold-value { font-weight: bold; color: #03dac6; min-width: 40px; text-align: right; }
-
-/* 다크 모드 자동 감지 */
-@media (prefers-color-scheme: dark) { 
-.container { background-color: #1e1e1e; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5); }
-h1, h2 { color: #bb86fc; } 
-h3 { color: #fff; } 
-.status-box { border: 1px solid #333; } 
-.control-area { border: 1px dashed #444; } 
-label { color: #a0a0a0; }
-select, button, input[type="file"]::file-selector-button { border: 1px solid #333; background-color: #2a2a2a; color: #e0e0e0; }
-button { background-color: #03dac6; color: #121212; }
-button:disabled { background-color: #444; color: #888; }
-button.recording, button.playing { background-color: #cf6679; }
-#status { color: #a0a0a0; }
-.output-div { background-color: #2c2c2c; border: 1px solid #444; }
-.output-div p { border-bottom: 1px solid #3a3a3a; transition: background-color 0.3s; }
-.lang-select { background-color: #333; border: 1px solid #555; font-size: 14px; padding: 5px 8px; }
-#waveform-canvas { background-color: #2c2c2c; } 
-.open-viewer { background:#000; color:#fff; } 
-#rejection-overlay { background-color: rgba(0, 0, 0, 0.85); color: #fff; }
-.overlay-content { background-color: #2e2e2e; box-shadow: 0 5px 20px rgba(0,0,0,0.5); }
-.overlay-content h2 { color: #cf6679; }
-@keyframes background-fade { 0% { background-color: rgba(187, 134, 252, 0.2); } 100% { background-color: transparent; } } 
-
-/* [추가] 설정 영역 스타일 */
-.settings-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; gap: 2rem; }
-.setting-item { flex: 1; text-align: left; }
-.slider-container { display: flex; align-items: center; gap: 10px; }
-input[type="range"] { flex-grow: 1; -webkit-appearance: none; appearance: none; width: 100%; height: 8px; background: #444; outline: none; border-radius: 4px; }
-input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; background: #03dac6; cursor: pointer; border-radius: 50%; }
-input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; background: #03dac6; cursor: pointer; border-radius: 50%; }
-#silence-threshold-value { font-weight: bold; color: #03dac6; min-width: 40px; text-align: right; }
-
-
+/* /css/live_asr.css */
+body {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    margin: 0;
+    padding: 2rem 0;
 }
- 
+
+.container-wrapper {
+    display: flex;
+    width: 100%;
+    max-width: 1600px;
+    justify-content: center;
+}
+
+.container {
+    position: relative;
+    width: 45%;
+    min-width: 500px;
+    background-color: #fff;
+    padding: 20px 2rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+h1,
+h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #bb86fc;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+h2 {
+    font-size: 20px;
+    margin-bottom: 1.5rem;
+}
+
+h3 {
+    display: flex;
+    align-items: center;
+}
+
+/* justify-content: space-between; */
+h3 span,
+h3 select {
+    margin-left: 1rem;
+}
+
+.status-box {
+    margin-bottom: 1rem;
+    border: 1px solid #ccc;
+    padding: 0 1rem;
+    border-radius: 8px;
+}
+
+.transcription-box {
+    margin-bottom: 1rem;
+}
+
+.control-area {
+    text-align: center;
+    padding: 1.5rem;
+    border: 1px dashed #444;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.control-area .lang_select_box div {
+    display: inline-block;
+    width: 30%;
+}
+
+.control-area.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+label {
+    display: inline-block;
+    margin-bottom: 0.5rem;
+    text-align: left;
+}
+
+.mic-select {
+    display: inline-block;
+    width: 45%;
+    margin-bottom: 0.5rem;
+}
+
+select,
+button,
+input[type="file"]::file-selector-button {
+    padding: 10px 15px;
+    font-size: 16px;
+    border-radius: 5px;
+    border: 1px solid #333;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+button {
+    background-color: #03dac6;
+    font-weight: bold;
+    border: none;
+    margin: 0 5px;
+}
+
+button:disabled {
+    background-color: #ccc;
+    color: #eaeaea;
+    cursor: not-allowed;
+}
+
+button.recording,
+button.playing {
+    background-color: #cf6679;
+}
+
+#status {
+    font-style: italic;
+    color: #a0a0a0;
+}
+
+.output-div {
+    background-color: #f1f4ff;
+    padding: 1rem;
+    border-radius: 5px;
+    min-height: 130px;
+    max-height: 150px;
+    overflow-y: auto;
+    text-align: left;
+    white-space: pre-wrap;
+    border: 1px solid #cfd7e8;
+}
+
+.output-div p {
+    margin: 0 0 0.5em 0;
+    padding: 0.2em 0.4em;
+    border-bottom: 1px solid #3a3a3a;
+    transition: background-color 0.3s;
+}
+
+.lang-select {
+    border: 1px solid #555;
+    font-size: 14px;
+    padding: 5px 8px;
+}
+
+#waveform-canvas {
+    width: 100%;
+    height: 40px;
+    background-color: #f1f4ff;
+    border: 1px solid #cfd7e8;
+    border-radius: 5px;
+    margin: 1rem 0;
+}
+
+.player-controls button {
+    background-color: #fff;
+    font-size: 20px;
+    padding: 8px 12px;
+}
+
+.output-div p.final-result {
+    animation: background-fade 1.5s ease-out;
+    font-weight: 500;
+}
+
+.output-div p.interim-typing::after {
+    content: '';
+    animation: blink 0.7s step-end infinite;
+}
+
+#rejection-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    color: #fff;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    z-index: 1000;
+}
+
+.overlay-content {
+    background-color: #2e2e2e;
+    padding: 2rem 3rem;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+}
+
+.overlay-content h2 {
+    color: #cf6679;
+}
+
+.open-viewer {
+    position: absolute;
+    top: 30px;
+    right: 30px;
+    width: 40px;
+    height: 40px;
+    border-radius: 20px;
+    background: #2563eb;
+    text-align: center;
+    font-size: 26px;
+    font-weight: bold;
+    color: #fff;
+    line-height: 36px;
+    text-decoration: none;
+}
+
+/* [추가] 설정 영역 스타일 */
+.settings-area {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    gap: 2rem;
+}
+
+.setting-item {
+    flex: 1;
+    text-align: left;
+}
+
+.slider-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.slider-container span {
+    width: 50px;
+}
+
+input[type="range"] {
+    flex-grow: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 8px;
+    background: #444;
+    outline: none;
+    border-radius: 4px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    background: #03dac6;
+    cursor: pointer;
+    border-radius: 50%;
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: #03dac6;
+    cursor: pointer;
+    border-radius: 50%;
+}
+
+#silence-threshold-value {
+    font-weight: bold;
+    color: #03dac6;
+    min-width: 40px;
+    text-align: right;
+}
+
+/* 파라메터 수정(tuning-text) textarea 스타일 */
+#tuning-text {
+    width: 100%;
+    /* 부모 요소(control-area)의 너비를 꽉 채움 */
+    height: 300px;
+    /* 충분한 기본 높이 지정 */
+    min-height: 150px;
+    /* 최소 높이를 지정하여 너무 작아지지 않게 함 */
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-family: 'Courier New', Courier, monospace;
+    /* 가독성을 위해 고정폭 글꼴 사용 */
+    font-size: 14px;
+    line-height: 1.5;
+    box-sizing: border-box;
+    /* padding과 border를 너비/높이에 포함 */
+    resize: vertical;
+    /* 사용자가 수직으로만 크기를 조절할 수 있게 함 */
+    margin-bottom: 1rem;
+    /* 아래 버튼과의 간격 */
+}
+
+/* "JSON으로 서버 전송" 버튼 스타일 */
+#tuning-btn {
+    width: 100%;
+    /* 너비를 꽉 채워서 textarea와 일관성 유지 */
+    padding: 12px;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* --- 도움말 아이콘 스타일 --- */
+.help-icon {
+    display: inline-block;
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: bold;
+    color: #fff;
+    background-color: #aaa;
+    border-radius: 50%;
+    cursor: pointer;
+    margin-left: 10px;
+    vertical-align: middle;
+    /* h2 텍스트와 세로 중앙 정렬 */
+    transition: background-color 0.2s;
+}
+
+.help-icon:hover {
+    background-color: #03dac6;
+}
+
+/* --- 모달 팝업 스타일 --- */
+.modal {
+    display: none;
+    /* 평소에는 숨김 */
+    position: fixed;
+    /* 화면에 고정 */
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    /* 내용이 길면 스크롤 */
+    background-color: rgba(0, 0, 0, 0.6);
+    /* 반투명 배경 */
+    animation: fadeIn 0.3s;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 10vh auto;
+    /* 화면 상단에서 10% 아래, 가로 중앙 정렬 */
+    padding: 20px 30px 30px;
+    border: 1px solid #888;
+    border-radius: 10px;
+    width: 80%;
+    max-width: 700px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    position: relative;
+    animation: slideIn 0.4s;
+}
+
+.close-btn {
+    color: #aaa;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-btn:hover,
+.close-btn:focus {
+    color: black;
+    text-decoration: none;
+}
+
+.modal-body {
+    max-height: 65vh;
+    /* 내용이 너무 길어질 경우를 대비 */
+    overflow-y: auto;
+    padding-right: 15px;
+    /* 스크롤바 공간 확보 */
+}
+
+/* 설명 목록 (dl) 스타일 */
+.modal-body dl dt {
+    font-weight: bold;
+    color: #bb86fc;
+    font-size: 1.1em;
+    margin-top: 1.2em;
+}
+
+.modal-body dl dd {
+    margin-left: 0;
+    padding-left: 1.5em;
+    border-left: 3px solid #eee;
+    margin-top: 0.5em;
+    line-height: 1.6;
+}
+
+.modal-body dl dd code {
+    background-color: #e8e8e8;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* 번역 엔진과 토글 버튼을 감싸는 wrapper */
+.engine-select {
+    height: 34px;
+    /* .icon-btn 높이와 동일하게 맞춤 */
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.engine-control-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    /* select와 button 사이 간격 */
+}
+
+/* 토글 버튼 기본 스타일 */
+.icon-btn {
+    padding: 6px;
+    background-color: transparent;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+
+    /* [수정] flexbox를 이용한 중앙 정렬 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* line-height: 0; 속성은 제거합니다. */
+}
+
+/* 기존 CSS 코드에 이 부분은 그대로 두거나 확인하세요. */
+.icon-btn:hover {
+    background-color: #f0f0f0;
+    border-color: #aaa;
+}
+
+.icon-btn svg {
+    width: 20px;
+    height: 20px;
+    color: #555;
+}
+
+/* 파라미터 영역에 애니메이션 효과 추가 */
+#param-control-area {
+    overflow: hidden;
+    transition: all 0.4s ease-in-out;
+    padding: 1.5rem;
+    /* display:none에서 block으로 바뀔 때 padding이 유지되도록 함 */
+}
+
+/* 슬라이드 다운/업 효과를 위한 클래스 */
+.slide-down {
+    max-height: 1000px;
+    /* 충분히 큰 값으로 설정 */
+    opacity: 1;
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-width: 1px;
+    margin-bottom: 1rem;
+}
+
+.slide-up {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-width: 0;
+    margin-bottom: 0;
+}
+
+@keyframes background-fade {
+    0% {
+        background-color: rgba(187, 134, 252, 0.2);
+    }
+
+    100% {
+        background-color: transparent;
+    }
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+/* 애니메이션 */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* 다크 모드 */
+@media (prefers-color-scheme: dark) {
+    .container {
+        background-color: #2a2a2e;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    }
+
+    h1,
+    h2 {
+        color: #bb86fc;
+    }
+
+    h3 {
+        color: #fff;
+    }
+
+    .status-box {
+        border: 1px solid #444;
+    }
+
+    .control-area {
+        border: 1px dashed #444;
+    }
+
+    label {
+        color: #a0a0a0;
+    }
+
+    select,
+    button,
+    input[type="file"]::file-selector-button {
+        border: 1px solid #555;
+        background-color: #3a3a3a;
+        color: #e0e0e0;
+    }
+
+    button {
+        background-color: #03dac6;
+        color: #121212;
+    }
+
+    button:disabled {
+        background-color: #444;
+        color: #888;
+    }
+
+    button.recording,
+    button.playing {
+        background-color: #cf6679;
+    }
+
+    #status {
+        color: #a0a0a0;
+    }
+
+    .output-div {
+        background-color: #1e1e1e;
+        border: 1px solid #444;
+    }
+
+    .output-div p {
+        border-bottom: 1px solid #3a3a3a;
+    }
+
+    #waveform-canvas {
+        background-color: #2c2c2c;
+    }
+
+    .open-viewer {
+        background: #000;
+        color: #fff;
+    }
+
+    .rejection-overlay {
+        background-color: rgba(0, 0, 0, 0.85);
+        color: #fff;
+    }
+
+    .overlay-content {
+        background-color: #2e2e2e;
+    }
+
+    input[type="range"] {
+        background: #444;
+    }
+
+    #tuning-text {
+        background-color: #2c2c2c;
+        color: #e0e0e0;
+        border-color: #444;
+    }
+
+    .help-icon {
+        background-color: #555;
+    }
+
+    .help-icon:hover {
+        color: #121212;
+    }
+
+    .modal-content {
+        background-color: #2e2e2e;
+        border-color: #555;
+        color: #e0e0e0;
+    }
+
+    .close-btn {
+        color: #888;
+    }
+
+    .close-btn:hover,
+    .close-btn:focus {
+        color: #fff;
+    }
+
+    .modal-body dl dd {
+        border-left-color: #444;
+    }
+
+    .modal-body dl dd code {
+        background-color: #444;
+        color: #e0e0e0;
+    }
+
+    .icon-btn {
+        border-color: #444;
+    }
+
+    .icon-btn:hover {
+        background-color: #3a3a3a;
+        border-color: #666;
+    }
+
+    .icon-btn svg {
+        color: #bbb;
+    }
+}
