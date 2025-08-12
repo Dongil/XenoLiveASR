@@ -31,6 +31,9 @@ class StreamSession:
         self.whisper_options: Dict = {}
         self.options_lock = asyncio.Lock()  # 옵션 딕셔너리 접근을 위한 잠금
 
+        # [수정] 누락된 self.lock 추가
+        self.lock = asyncio.Lock() # 텍스트 버퍼 및 번역 로직 보호를 위한 잠금
+        
         self.config_data: Dict = {'type': 'config', 'languages': []} 
         self.cache: deque = deque(maxlen=8); 
         self.proc: Optional[asyncio.subprocess.Process] = None
