@@ -70,5 +70,5 @@ venv.bak/
 # secrets - !!중요!!
 *.env
 config.ini
-analog-octagon-466805-u4-ed4be9f05c20.json
+secrets/
 uploads/
